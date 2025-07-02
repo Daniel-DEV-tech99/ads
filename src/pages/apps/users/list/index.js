@@ -33,7 +33,7 @@ import CardStatsHorizontalWithDetails from 'src/@core/components/card-statistics
 import { getInitials } from 'src/@core/utils/get-initials'
 
 // ** Actions Imports
-import { fetchData, deleteUser } from 'src/store/apps/user'
+import {  deleteUser } from 'src/store/apps/user'
 
 // ** Third Party Components
 import axios from 'axios'
@@ -41,6 +41,7 @@ import axios from 'axios'
 // ** Custom Table Components Imports
 import TableHeader from 'src/views/apps/user/list/TableHeader'
 import AddUserDrawer from 'src/views/apps/user/list/AddUserDrawer'
+import { fetchCustomer } from 'src/store/apps/customer'
 
 // ** renders client column
 const userRoleObj = {
@@ -261,7 +262,7 @@ const UserList = ({ apiData }) => {
   const store = useSelector(state => state.user)
   useEffect(() => {
     dispatch(
-      fetchData({
+      fetchCustomer({
         role,
         status,
         q: value,

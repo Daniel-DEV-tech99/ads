@@ -1014,9 +1014,9 @@ const AdvertisementAdd = () => {
   )
 }
 
-BannerAdAdd.acl = {
+AdvertisementAdd.acl = {
   action: 'manage',
   subject: 'review advertisement'
 }
 
-export default BannerAdAdd
+export default AdvertisementAdd
