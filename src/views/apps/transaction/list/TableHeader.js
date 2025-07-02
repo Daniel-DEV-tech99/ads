@@ -52,23 +52,7 @@ const TableHeader = props => {
             onChange={e => handleFilter(e.target.value)}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
-            <InputLabel id="tran-kind-select-label">Transaction Type</InputLabel>
-            <Select
-              labelId="tran-kind-select-label"
-              id="tran-kind-select"
-              value={tranKind}
-              size='small'
-              label="Transaction Type"
-              onChange={handleTranKindChange}
-            >
-              <MenuItem value="">All</MenuItem>
-              <MenuItem value="deposit">Deposit</MenuItem>
-              <MenuItem value="withdraw">Withdraw</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
+     
         <Grid item xs={12} sm={6} md={3}>
           <TextField
             fullWidth
@@ -101,30 +85,8 @@ const TableHeader = props => {
         </Grid>
       
      
-        <Grid item xs={12} sm={6} md={3}>
-          <FormControl fullWidth>
-            <InputLabel id="vendor-select-label">Vendor</InputLabel>
-            <Select
-              labelId="vendor-select-label"
-              id="vendor-select"
-              value={vendorId}
-              size='small'
-              label="Vendor"
-              onChange={handleVendorIdChange}
-            >
-              <MenuItem value="">All Vendors</MenuItem>
-              {vendors && vendors.map(vendor => (
-                <MenuItem key={vendor.id} value={vendor.id}>
-                  {vendor.name || vendor.id}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-        </Grid>
+     
+      
         
 
         <Grid item xs={12} sm={6} md={3} sx={{ display: 'flex', justifyContent: 'flex-end' }}>

@@ -20,6 +20,9 @@ import Select from '@mui/material/Select'
 import InputLabel from '@mui/material/InputLabel'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
+import Radio from '@mui/material/Radio'
+import RadioGroup from '@mui/material/RadioGroup'
+import FormLabel from '@mui/material/FormLabel'
 
 // ** Custom Components Imports
 import CustomTextField from 'src/@core/components/mui/text-field'
@@ -39,6 +42,9 @@ import { addTransaction } from 'src/store/apps/transaction'
 // ** Next Imports
 import { useRouter } from 'next/router'
 import { fetchCustomer } from 'src/store/apps/user'
+import { fetchAdmin } from 'src/store/apps/admin'
+import { fetchStations } from 'src/store/apps/stations'
+import { fetchVendor } from 'src/store/apps/vendor'
 
 const schema = yup.object().shape({
   amount: yup
@@ -50,12 +56,14 @@ const schema = yup.object().shape({
       if (value === undefined || value === null) return true
       return /^\d+(\.\d{1,2})?$/.test(value.toString())
     }),
-  peer_user_id: yup.string().required('Customer selection is required'),
+  transaction_type: yup.string().required('Transaction type is required'),
+  peer_user_id: yup.string().required('Recipient selection is required'),
   note: yup.string().nullable().max(500, 'Note cannot exceed 500 characters')
 })
 
 const defaultValues = {
   amount: '',
+  transaction_type: 'customer',
   peer_user_id: '',
   note: ''
 }
@@ -64,20 +72,25 @@ const TransactionAdd = () => {
   // ** Hooks
   const dispatch = useDispatch()
   const router = useRouter()
-  const { data:customers,loading, error } = useSelector(state => state.user)
-console.log(customers)
+  
+  // ** Redux State
+  const { data: customers, loading: customersLoading, error: customersError } = useSelector(state => state.user)
+  const { data: admins, loading: adminsLoading, error: adminsError } = useSelector(state => state.admin)
+  const { data: stations, loading: stationsLoading, error: stationsError } = useSelector(state => state.stations)
+  const { data: vendors, loading: vendorsLoading, error: vendorsError } = useSelector(state => state.vendor)
   // ** State
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)
   const [submitSuccess, setSubmitSuccess] = useState(false)
-  const [loadingCustomers, setLoadingCustomers] = useState(false)
-  const [customerError, setCustomerError] = useState(null)
+  const [userRole, setUserRole] = useState(null)
 
   // ** Form Hooks
   const {
     control,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors }
   } = useForm({
     defaultValues,
@@ -85,12 +98,67 @@ console.log(customers)
     resolver: yupResolver(schema)
   })
 
-  
+  // ** Watch transaction type to fetch appropriate data
+  const transactionType = watch('transaction_type')
 
-  // ** Effect to fetch customers on component mount
+  // ** Effect to fetch data based on transaction type
   useEffect(() => {
-    dispatch(fetchCustomer())
-  }, [])
+    // Reset peer_user_id when transaction type changes
+    setValue('peer_user_id', '')
+    
+    switch (transactionType) {
+      case 'customer':
+        dispatch(fetchCustomer())
+        break
+      case 'admin':
+        dispatch(fetchAdmin())
+        break
+      case 'station':
+        dispatch(fetchStations())
+        break
+      case 'vendor':
+        dispatch(fetchVendor())
+        break
+      default:
+        dispatch(fetchCustomer())
+    }
+  }, [dispatch, transactionType, setValue])
+
+  // ** Effect to get user role from local storage
+  useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem('userData'))
+    const storedUserRole = userData && userData.role
+    setUserRole(storedUserRole)
+    
+    // If user is admin and transaction type is admin, reset to customer
+    if (storedUserRole === 'admin' && transactionType === 'admin') {
+      setValue('transaction_type', 'customer')
+      setValue('peer_user_id', '')
+    }
+    
+    // If user is station, set transaction type to vendor
+    if (storedUserRole === 'station' && transactionType !== 'vendor') {
+      setValue('transaction_type', 'vendor')
+      setValue('peer_user_id', '')
+    }
+  }, [transactionType, setValue])
+
+  // ** Get current data and loading state based on transaction type
+  const getCurrentData = () => {
+    switch (transactionType) {
+      case 'admin':
+        return { data: admins || [], loading: adminsLoading, error: adminsError }
+      case 'station':
+        return { data: stations || [], loading: stationsLoading, error: stationsError }
+      case 'vendor':
+        return { data: vendors || [], loading: vendorsLoading, error: vendorsError }
+      case 'customer':
+      default:
+        return { data: customers || [], loading: customersLoading, error: customersError }
+    }
+  }
+
+  const { data: currentData, loading: currentLoading, error: currentError } = getCurrentData()
 
   const onSubmit = async data => {
     console.log('Form submitted with data:', data)
@@ -105,9 +173,14 @@ console.log(customers)
         throw new Error('Invalid amount value')
       }
 
-      // Validate customer selection
+      // Validate recipient selection
       if (!data.peer_user_id) {
-        throw new Error('Customer selection is required')
+        throw new Error('Recipient selection is required')
+      }
+
+      // Validate transaction type
+      if (!data.transaction_type) {
+        throw new Error('Transaction type is required')
       }
 
      
@@ -115,6 +188,7 @@ console.log(customers)
       // Format data for submission
       const formattedData = {
         amount: parseFloat(data.amount).toFixed(2), // Ensure 2 decimal places
+        
         peer_user_id: data.peer_user_id,
         note: data.note?.trim() || null, // Trim whitespace and convert empty string to null
       }
@@ -149,6 +223,60 @@ console.log(customers)
             <CardContent>
               <form onSubmit={handleSubmit(onSubmit)}>
                 <Grid container spacing={5}>
+                  {/* Transaction Type */}
+                  <Grid item xs={12}>
+                    <FormControl component="fieldset" error={Boolean(errors.transaction_type)}>
+                      <FormLabel component="legend">Transaction Type</FormLabel>
+                      <Controller
+                        name='transaction_type'
+                        control={control}
+                        rules={{ required: true }}
+                        render={({ field: { value, onChange } }) => (
+                          <RadioGroup
+                            row
+                            value={value}
+                            onChange={onChange}
+                            aria-label="transaction-type"
+                          >
+                            {userRole === 'station' ? (
+                              <FormControlLabel 
+                                value="vendor" 
+                                control={<Radio />} 
+                                label="Vendor" 
+                              />
+                            ) : (
+                              <>
+                                <FormControlLabel 
+                                  value="customer" 
+                                  control={<Radio />} 
+                                  label="Customer" 
+                                />
+                                {userRole !== 'admin' && (
+                                  <FormControlLabel 
+                                    value="admin" 
+                                    control={<Radio />} 
+                                    label="Admin" 
+                                  />
+                                )}
+                                <FormControlLabel 
+                                  value="station" 
+                                  control={<Radio />} 
+                                  label="Station" 
+                                />
+                                <FormControlLabel 
+                                  value="vendor" 
+                                  control={<Radio />} 
+                                  label="Vendor" 
+                                />
+                              </>
+                            )}
+                          </RadioGroup>
+                        )}
+                      />
+                      {errors.transaction_type && <FormHelperText>{errors.transaction_type.message}</FormHelperText>}
+                    </FormControl>
+                  </Grid>
+
                   {/* Amount */}
                   <Grid item xs={12} sm={6}>
                     <Controller
@@ -190,11 +318,11 @@ console.log(customers)
                     />
                   </Grid>
 
-                  {/* Customer Selection */}
+                  {/* Recipient Selection */}
                   <Grid item xs={12} sm={6}>
                     <FormControl fullWidth error={Boolean(errors.peer_user_id)}>
-                      <InputLabel id='customer-select-label'>
-                        Select Customer
+                      <InputLabel id='recipient-select-label'>
+                        Select {transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}
                       </InputLabel>
                       <Controller
                         name='peer_user_id'
@@ -202,13 +330,13 @@ console.log(customers)
                         rules={{ required: true }}
                         render={({ field: { value, onChange, onBlur } }) => (
                           <Select
-                            label={loadingCustomers ? 'Loading Customers...' : 'Select Customer'}
+                            label={currentLoading ? `Loading ${transactionType}s...` : `Select ${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}`}
                             value={value}
                             onBlur={onBlur}
                             onChange={onChange}
                             error={Boolean(errors.peer_user_id)}
-                            labelId='customer-select-label'
-                            disabled={loadingCustomers || customers.length === 0}
+                            labelId='recipient-select-label'
+                            disabled={currentLoading || currentData.length === 0}
                             MenuProps={{
                               PaperProps: {
                                 style: {
@@ -217,26 +345,26 @@ console.log(customers)
                               },
                             }}
                           >
-                            {loadingCustomers ? (
+                            {currentLoading ? (
                               <MenuItem disabled>
                                 <CircularProgress size={20} sx={{ mr: 2 }} />
-                                Loading customers...
+                                Loading {transactionType}s...
                               </MenuItem>
-                            ) : customers.length === 0 ? (
+                            ) : currentData.length === 0 ? (
                               <MenuItem disabled>
-                                {customerError ? 'Error loading customers' : 'No customers available'}
+                                {currentError ? `Error loading ${transactionType}s` : `No ${transactionType}s available`}
                               </MenuItem>
                             ) : (
-                              customers.map((customer) => (
+                              currentData.map((item) => (
                                 <MenuItem 
-                                  key={customer.id} 
-                                  value={customer.id}
-                                  title={customer.email || customer.phone || ''}
+                                  key={item.id} 
+                                  value={item.id}
+                                  title={item.email || item.phone || ''}
                                 >
-                                  {customer.name || customer.full_name || `Customer ${customer.id}`}
-                                  {customer.email && (
+                                  {item.name || item.full_name || item.title || `${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)} ${item.id}`}
+                                  {item.email && (
                                     <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                                      ({customer.email})
+                                      ({item.email})
                                     </Typography>
                                   )}
                                 </MenuItem>
@@ -246,12 +374,27 @@ console.log(customers)
                         )}
                       />
                       {errors.peer_user_id && <FormHelperText>{errors.peer_user_id.message}</FormHelperText>}
-                      {customerError && !errors.peer_user_id && (
+                      {currentError && !errors.peer_user_id && (
                         <FormHelperText sx={{ color: 'warning.main' }}>
-                          {customerError}
+                          {currentError}
                           <Button 
                             size="small" 
-                            onClick={fetchCustomers}
+                            onClick={() => {
+                              switch (transactionType) {
+                                case 'admin':
+                                  dispatch(fetchAdmin())
+                                  break
+                                case 'station':
+                                  dispatch(fetchStations())
+                                  break
+                                case 'vendor':
+                                  dispatch(fetchVendor())
+                                  break
+                                case 'customer':
+                                default:
+                                  dispatch(fetchCustomer())
+                              }
+                            }}
                             sx={{ ml: 1, minWidth: 'auto', p: 0.5 }}
                           >
                             Retry
@@ -332,6 +475,6 @@ console.log(customers)
 }
 TransactionAdd.acl = {
   action: 'manage',
-  subject: 'manage transaction'
+  subject: 'transaction'
 }
 export default TransactionAdd

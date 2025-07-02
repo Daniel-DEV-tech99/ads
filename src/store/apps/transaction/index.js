@@ -25,7 +25,12 @@ export const addTransaction = createAsyncThunk(
   async (data, { getState, dispatch, rejectWithValue }) => {
     try {
       console.log('Redux action received data:', data);
-      const response = await axiosInstance.post('/transactions', data)
+      
+      // Determine the API endpoint based on transaction type
+      let endpoint = '/transactions'
+   
+      
+      const response = await axiosInstance.post(endpoint, data)
       console.log('API response:', response.data);
       dispatch(fetchData(getState().transaction.params))
       

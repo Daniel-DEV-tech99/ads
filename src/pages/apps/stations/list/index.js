@@ -283,7 +283,7 @@ export const getStaticProps = async () => {
   }
 }
 
-FilterList.acl = {
+StationList.acl = {
   action: 'manage',
   subject: 'manage station'
 }

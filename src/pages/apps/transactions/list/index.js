@@ -368,7 +368,7 @@ export const getStaticProps = async () => {
 
 TransactionList.acl = {
   action: 'manage',
-  subject: 'manage transaction'
+  subject: 'transaction'
 }
 
 export default TransactionList
